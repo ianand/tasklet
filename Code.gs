@@ -46,7 +46,7 @@ var MILLISECONDS_PER_MINUTE = 1000*60;
 var MILLISECONDS_PER_HOUR = MILLISECONDS_PER_MINUTE*60;
 
 //
-// Task Filtering Code
+// Task-Calendar Synchronization Code
 //
 
 function main() {
@@ -176,11 +176,20 @@ function processShortcuts(task) {
     
   }
   
+  // Set the due date for completed tasks that don't have it set. 
+  // By setting the due date for completed tasks they will appear
+  // in google calendar so we can view what we've done at a glance.
+  function completedDueDateShortcut() {
+    if(!task.due && task.completed) {
+      task.due = task.completed;
+    }
+  }
   
   // TODO: Tagging functionality
   
   // Handle shorcuts
   dueDateShortcut();
+  completedDueDateShortcut();  
   timeEstimateShortcut();    
   
   // Done shortcut reads task.notes for time estimate so it 
