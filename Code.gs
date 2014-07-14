@@ -45,6 +45,114 @@ var DEFAULT_CALENDAR = CalendarApp.getDefaultCalendar();
 var MILLISECONDS_PER_MINUTE = 1000*60;
 var MILLISECONDS_PER_HOUR = MILLISECONDS_PER_MINUTE*60;
 
+
+//
+// Web Interface
+//
+function doGet(request) {
+
+  // Monkey patch the request object
+  request.getParam = function(paramName) {
+    return request.parameters[paramName] ? request.parameters[paramName][0] : null;
+  }
+  request.responseJSON = function(result) {
+    // every response should echo back the input
+    result.request = this.parameters;
+  
+    // get the JSONP function name
+    var functionName = this.getParam("prefix");
+    
+    if(functionName) {
+      return ContentService.createTextOutput(
+        functionName + '(' + JSON.stringify(result) + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);  
+    } else {
+      return ContentService.createTextOutput(JSON.stringify(result))
+      .setMimeType(ContentService.MimeType.JAVASCRIPT); 
+    }
+
+  }
+  
+  var command = request.getParam("command");
+  
+  switch (command)  {
+    case "createTask": 
+      return doCreateTask(request);
+      break;      
+  }
+  
+  // default
+  
+ return HtmlService
+      .createTemplateFromFile('index')
+      .evaluate();  
+}
+
+function doCreateTask(request) {
+  // TODO: Is this really right way to get the default Tasklist?
+  var defaultTaskList = Tasks.Tasklists.list().items[0];
+    
+  // Create the task
+  var task = {
+    title: request.getParam("title"),
+    notes: request.getParam("notes")
+  }
+  task = Tasks.Tasks.insert(task, defaultTaskList.id);
+  
+  // Run shortcuts and sync newly created task to calendar
+  processTask(task, defaultTaskList.id);
+  
+  // Return success
+  return request.responseJSON({success:true});
+}
+
+function include(filename) {
+  return HtmlService.createHtmlOutputFromFile(filename)
+      .getContent();
+}
+
+/*
+
+Bookmarklet Source:
+
+var taskletResponseHandler=function (result) {
+var msg = "Successfully added task!";
+if(!result.success) {
+  msg = "ERROR! Failed to create task!!!";
+ };
+ alert("Tasklet: " + msg);
+};
+
+(function () {
+  var taskTitle = window.prompt("Enter the title for task", document.title);
+  if(!taskTitle) {
+     return;
+  }  
+  var taskNotes = window.location;
+  var url = "APPS_SCRIPT_URL";
+  url += "?command=createTask";
+  url += "&title=" + encodeURIComponent(taskTitle);
+  url += "&notes=" + encodeURIComponent(taskNotes);
+  url += "&prefix=taskletResponseHandler";
+  var elem = document.createElement("script");
+  elem.setAttribute("src", url);
+  document.body.appendChild(elem);
+})();
+
+Compiled Bookmarklet:
+
+javascript:var%20taskletResponseHandler%3Dfunction%20(result)%20%7Bvar%20msg%20%3D%20%22Successfully%20added%20task!%22%3Bif(!result.success)%20%7Bmsg%20%3D%20%22ERROR!%20Failed%20to%20create%20task!!!%22%3B%7D%3Balert(%22Tasklet%3A%20%22%20%2B%20msg)%3B%7D%3B(function%20()%20%7Bvar%20taskTitle%20%3D%20window.prompt(%22Enter%20the%20title%20for%20task%22%2C%20document.title)%3Bif(!taskTitle)%20%7Breturn%3B%7Dvar%20taskNotes%20%3D%20window.location%3Bvar%20url%20%3D%20%22APPS_SCRIPT_URL%22%3Burl%20%2B%3D%20%22%3Fcommand%3DcreateTask%22%3Burl%20%2B%3D%20%22%26title%3D%22%20%2B%20encodeURIComponent(taskTitle)%3Burl%20%2B%3D%20%22%26notes%3D%22%20%2B%20encodeURIComponent(taskNotes)%3Burl%20%2B%3D%20%22%26prefix%3DtaskletResponseHandler%22%3Bvar%20elem%20%3D%20document.createElement(%22script%22)%3Belem.setAttribute(%22src%22%2C%20url)%3Bdocument.body.appendChild(elem)%3B%7D)()
+
+*/
+
+function getBookmarkletString() {
+  var appsScriptUrl = ScriptApp.getService().getUrl();
+  var bookmarkletSource = "javascript:var%20taskletResponseHandler%3Dfunction%20(result)%20%7Bvar%20msg%20%3D%20%22Successfully%20added%20task!%22%3Bif(!result.success)%20%7Bmsg%20%3D%20%22ERROR!%20Failed%20to%20create%20task!!!%22%3B%7D%3Balert(%22Tasklet%3A%20%22%20%2B%20msg)%3B%7D%3B(function%20()%20%7Bvar%20taskTitle%20%3D%20window.prompt(%22Enter%20the%20title%20for%20task%22%2C%20document.title)%3Bif(!taskTitle)%20%7Breturn%3B%7Dvar%20taskNotes%20%3D%20window.location%3Bvar%20url%20%3D%20%22APPS_SCRIPT_URL%22%3Burl%20%2B%3D%20%22%3Fcommand%3DcreateTask%22%3Burl%20%2B%3D%20%22%26title%3D%22%20%2B%20encodeURIComponent(taskTitle)%3Burl%20%2B%3D%20%22%26notes%3D%22%20%2B%20encodeURIComponent(taskNotes)%3Burl%20%2B%3D%20%22%26prefix%3DtaskletResponseHandler%22%3Bvar%20elem%20%3D%20document.createElement(%22script%22)%3Belem.setAttribute(%22src%22%2C%20url)%3Bdocument.body.appendChild(elem)%3B%7D)()";
+  bookmarkletSource = bookmarkletSource.replace("APPS_SCRIPT_URL", encodeURIComponent(appsScriptUrl));
+  Logger.log(bookmarkletSource);
+  return bookmarkletSource;
+}
+
 //
 // Task-Calendar Synchronization Code
 //

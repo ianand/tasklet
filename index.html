@@ -1,0 +1,40 @@
+<?!= include('CSS_Spinner_Style.html'); ?>
+
+<h1> Tasklet Control Panel </h1>
+
+<h2> Synchronize Tasks with Calendar </h2>
+<script>
+
+function showSpinner(showSpinner) {
+  if(showSpinner) {
+    document.getElementById("runButton").style.display="none";
+    document.getElementById("spinner").style.display= "inline-block";
+  } else {
+    document.getElementById("spinner").style.display= "none";
+    document.getElementById("runButton").style.display ="inline-block";
+  }
+}
+
+function syncTasks() {
+  showSpinner(true);
+  google.script.run.withFailureHandler(onFailure).withSuccessHandler(onSuccess).main();
+}
+
+function onFailure() {
+  showSpinner(false);
+  alert("An error occurred");
+}
+function onSuccess() {
+  showSpinner(false);
+}
+</script>
+<input id="runButton" type="submit" value="Synchronize" onclick="syncTasks()">
+<div id="spinner" style="display:none;"> <?!= include('CSS_Spinner_HTML.html'); ?></div>
+
+<h2> Bookmarklet </h2>
+
+<p><?= getBookmarkletString() ?></p>
+
+<p>Caja will not us directly create a bookmarklet on this page so you need to manually copy the text of the bookmarklet to your browser's bookmarks.<p>
+
+
