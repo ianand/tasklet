@@ -211,12 +211,14 @@ function processTask(task, taskListId) {
 // Handle any task shortcuts
 function processShortcuts(task) {
   
+  // All shortcut functions return true if the properties of the task were changed.
+  
   // Time estimate shortcut sets a time estimate for the task
   function timeEstimateShortcut() {    
     // Scan title for time estimate
     var result = Helper.parseTimeEstimateString(task.title, {titleFormat:true});
     if(!result) {
-      return;
+      return false;
     }
         
     // Remove the estimate shortcut from the title
@@ -227,6 +229,7 @@ function processShortcuts(task) {
       task.notes = "";
     }
     task.notes = result.min + "mins \n" + task.notes;
+    return true;
   }
   
   // Due date shortcut sets a due date for the task
@@ -234,12 +237,13 @@ function processShortcuts(task) {
     // Scan title for due date
     var result = Helper.parseDueDateString(task.title);
     if(!result) {
-      return;
+      return false;
     }
 
     // Apply result to task
     task.title = result.newString;
     task.due = result.dueDate; 
+    return true;
   }
   
   // The done shortcut creates a calendar entry for completed
@@ -248,11 +252,11 @@ function processShortcuts(task) {
   function doneShortcut() {
     
     if(!task.completed) {
-      return;
+      return false;
     }
     var matches = /\:done\b/.exec(task.title);
     if(!matches) {
-      return;
+      return false;
     }
     
     // Remove the shortcut from the title
@@ -264,7 +268,7 @@ function processShortcuts(task) {
     // Get the time estimate for the task
     var timeEstimate = Helper.parseTimeEstimateString(task.notes);
     if(!timeEstimate) {
-      return;
+      return false;
     }
     
     // Check if there is a calendar event for this task already
@@ -281,7 +285,7 @@ function processShortcuts(task) {
     opts.endTime = Helper.dateFromDateString(task.completed);
     opts.startTime = new Date(opts.endTime.getTime() - timeEstimate.min*MILLISECONDS_PER_MINUTE); 
     createCalendarEvent(task, timeEstimate.min, opts);
-    
+    return true;
   }
   
   // Set the due date for completed tasks that don't have it set. 
@@ -290,22 +294,24 @@ function processShortcuts(task) {
   function completedDueDateShortcut() {
     if(!task.due && task.completed) {
       task.due = task.completed;
+      return true;
     }
+    return false;
   }
   
   // TODO: Tagging functionality
   
   // Handle shorcuts
-  dueDateShortcut();
-  completedDueDateShortcut();  
-  timeEstimateShortcut();    
+  var changed = dueDateShortcut() || completedDueDateShortcut() || timeEstimateShortcut();
   
   // Done shortcut reads task.notes for time estimate so it 
   // must execute after time estimate shortcut.
-  doneShortcut();
+  changed = doneShortcut() || changed;
   
   // Save any changes to the task from shortcuts.
-  Tasks.Tasks.patch(task, task.taskListId, task.id);
+  if(changed) {
+    Tasks.Tasks.patch(task, task.taskListId, task.id);
+  }
 }
 
 
